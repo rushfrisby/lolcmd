@@ -10,57 +10,63 @@ using System.Threading;
 
 namespace lolcmd
 {
-    class Program
+    internal class Program
     {
-        private static Queue<Color> Colors = GetGradients(Color.Yellow, Color.Fuchsia, 15);
-        private static Task outputTask;
-        private static Task inputTask;
-        private static Process process;
-        private static CancellationTokenSource CTS = new CancellationTokenSource();
+        //private static Queue<Color> Colors = GetGradients(Color.Yellow, Color.Fuchsia, 15);
+        private static Queue<Color> _colors = GetDefaultGradients();
+        private static Task _outputTask;
+        private static Task _inputTask;
+        private static Process _process;
+        private static readonly CancellationTokenSource Cts = new CancellationTokenSource();
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            handler = new ConsoleEventDelegate(ConsoleEventCallback);
-            SetConsoleCtrlHandler(handler, true);
+            _handler = ConsoleEventCallback;
+            SetConsoleCtrlHandler(_handler, true);
 
             var skipLine = false;
-            process = new Process();
-            process.StartInfo.FileName = "cmd.exe";
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardInput = true;
+            _process = new Process
+            {
+                StartInfo =
+                {
+                    FileName = "cmd.exe",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = true
+                }
+            };
 
-            var charsPerColor = (int)Math.Floor(Console.BufferWidth / (decimal)Colors.Count());
+            var charsPerColor = (int)Math.Floor(Console.BufferWidth / (decimal)_colors.Count()) * 2;
 
             if (args != null && args.Any())
             {
-                process.StartInfo.Arguments = string.Join(" ", args);
+                _process.StartInfo.Arguments = string.Join(" ", args);
             }
 
-            outputTask = new Task(() =>
+            _outputTask = new Task(() =>
             {
-                var colors = new Queue<Color>(Colors);
+                var colors = new Queue<Color>(_colors);
                 var currentColor = GetNextColor();
                 var charsOnLine = 0;
 
-                while (!process.StandardOutput.EndOfStream)
+                while (!_process.StandardOutput.EndOfStream)
                 {
-                    var outputValue = process.StandardOutput.Read();
+                    var outputValue = _process.StandardOutput.Read();
                     if (skipLine)
                     {
-                        if (outputValue == 13 && process.StandardOutput.Peek() == 10)
+                        if (outputValue == 13 && _process.StandardOutput.Peek() == 10)
                         {
-                            process.StandardOutput.Read();
+                            _process.StandardOutput.Read();
                             skipLine = false;
                         }
                         continue;
                     }
 
-                    if (outputValue == 13 && process.StandardOutput.Peek() == 10)
+                    if (outputValue == 13 && _process.StandardOutput.Peek() == 10)
                     {
-                        Colors = new Queue<Color>(colors); //reset to previous line's starting point
+                        _colors = new Queue<Color>(colors); //reset to previous line's starting point
                         currentColor = GetNextColor(); //advance one color
-                        colors = new Queue<Color>(Colors); //new starting position for next line
+                        colors = new Queue<Color>(_colors); //new starting position for next line
                         charsOnLine = 0;
                     }
 
@@ -72,9 +78,9 @@ namespace lolcmd
 
                     Console.Write((char)outputValue, currentColor);
                 }
-            }, CTS.Token);
+            }, Cts.Token);
 
-            inputTask = new Task(() =>
+            _inputTask = new Task(() =>
             {
                 using (var tr = Console.In)
                 {
@@ -85,26 +91,26 @@ namespace lolcmd
                         {
                             tr.Read();
                             skipLine = true;
-                            process.StandardInput.WriteLine();
+                            _process.StandardInput.WriteLine();
                         }
                         else
                         {
-                            process.StandardInput.Write((char)inputValue);
+                            _process.StandardInput.Write((char)inputValue);
                         }
                     }
                 }
-            }, CTS.Token);
+            }, Cts.Token);
 
-            process.Start();
-            outputTask.Start();
-            inputTask.Start();
-            process.WaitForExit();
+            _process.Start();
+            _outputTask.Start();
+            _inputTask.Start();
+            _process.WaitForExit();
         }
 
         private static Color GetNextColor()
         {
-            var color = Colors.Dequeue();
-            Colors.Enqueue(color);
+            var color = _colors.Dequeue();
+            _colors.Enqueue(color);
             return color;
         }
 
@@ -112,7 +118,7 @@ namespace lolcmd
         {
             var queue = new Queue<Color>();
             var colorList = new List<Color>();
-            for (int i = 0; i < steps; i++)
+            for (var i = 0; i < steps; i++)
             {
                 var rAverage = end.R + (start.R - end.R) * i / steps;
                 var gAverage = end.G + (start.G - end.G) * i / steps;
@@ -131,16 +137,43 @@ namespace lolcmd
             return queue;
         }
 
-        static bool ConsoleEventCallback(int eventType)
+        private static Queue<Color> GetDefaultGradients()
+        {
+            var q = new Queue<Color>();
+            q.Enqueue(Color.FromArgb(232, 42, 38)); // E82A26 red
+            q.Enqueue(Color.FromArgb(232, 106, 25));
+            q.Enqueue(Color.FromArgb(233, 170, 12));
+            q.Enqueue(Color.FromArgb(234, 235, 0)); // EAEB00 yellow
+            q.Enqueue(Color.FromArgb(156, 216, 15));
+            q.Enqueue(Color.FromArgb(78, 197, 30));
+            q.Enqueue(Color.FromArgb(0, 179, 45)); // 00B32D green
+            q.Enqueue(Color.FromArgb(2, 140, 107));
+            q.Enqueue(Color.FromArgb(5, 102, 169));
+            q.Enqueue(Color.FromArgb(8, 64, 231)); // 0840E7 blue
+            q.Enqueue(Color.FromArgb(90, 42, 229));
+            q.Enqueue(Color.FromArgb(172, 21, 227));
+            q.Enqueue(Color.FromArgb(255, 0, 226)); // FF00E2 magenta
+            q.Enqueue(Color.FromArgb(247, 14, 163));
+            q.Enqueue(Color.FromArgb(239, 28, 100));
+
+            foreach (var color in q.ToArray().Reverse())
+            {
+                q.Enqueue(color);
+            }
+
+            return q;
+        }
+
+        private static bool ConsoleEventCallback(int eventType)
         {
             if (eventType == 2)
             {
-                CTS.Cancel();
-                process.Dispose();
+                Cts.Cancel();
+                _process.Dispose();
             }
             return false;
         }
-        static ConsoleEventDelegate handler;   // Keeps it from getting garbage collected
+        static ConsoleEventDelegate _handler;   // Keeps it from getting garbage collected
                                                // Pinvoke
         private delegate bool ConsoleEventDelegate(int eventType);
 
