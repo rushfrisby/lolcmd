@@ -1,5 +1,5 @@
 # lolcmd
-It's like https://github.com/busyloop/lolcat but for Windows Command Prompt.
+It's like https://github.com/busyloop/lolcat but for Windows.
 
 **Screenshot**
 
