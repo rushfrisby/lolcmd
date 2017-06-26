@@ -1,5 +1,5 @@
 # lolcmd
-It's like https://github.com/busyloop/lolcat but for Windows.
+Rainbows for Windows! https://github.com/busyloop/lolcat can't have all the fun.
 
 **Screenshot**
 
